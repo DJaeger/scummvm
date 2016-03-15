@@ -394,6 +394,9 @@ Common::String parseCommandLine(Common::StringMap &settings, int argc, const cha
 			DO_COMMAND('z', "list-games")
 			END_COMMAND
 
+			DO_COMMAND('d', "detect-game")
+			END_COMMAND
+
 #ifdef DETECTOR_TESTING_HACK
 			// HACK FIXME TODO: This command is intentionally *not* documented!
 			DO_LONG_COMMAND("test-detector")
@@ -752,6 +755,45 @@ static void listAudioDevices() {
 	}
 }
 
+static void runDetector(const char *path) {
+	// The following code can be used to detect a single game by path.
+	// Basically, it calls the detector for the given path and prints
+	// out the result.
+
+		printf("Looking at path '%s' ...\n", path.c_str());
+		if (path.empty()) {
+			printf(" ... no path specified, skipping\n");
+			continue;
+		}
+
+		Common::FSNode dir(path);
+		Common::FSList files;
+		if (!dir.getChildren(files, Common::FSNode::kListAll)) {
+			printf(" ... invalid path, skipping\n");
+			continue;
+		}
+
+		GameList candidates(EngineMan.detectGames(files));
+
+		if (candidates.empty()) {
+			printf(" FAILURE: No games detected\n");
+		} else if (candidates.size() > 1) {
+			printf(" WARNING: Multiple games detected, but all have matching gameid\n");
+		} else {
+			printf(" SUCCESS: Game was detected correctly\n");
+		}
+		
+		printf("Game ID         Full Title                               Language   Platform  \n"
+			   "--------------- ---------------------------------------- ---------- ----------\n");
+
+		for (x = candidates.begin(); x != candidates.end(); ++x) {
+			printf("%-15s %-40s %-10s %-10s\n",
+				   x->gameid().c_str(),
+				   x->description().c_str(),
+				   Common::getLanguageCode(x->language()),
+				   Common::getPlatformCode(x->platform()));
+		}
+}
 
 #ifdef DETECTOR_TESTING_HACK
 static void runDetectorTest() {
@@ -977,6 +1019,9 @@ bool processSettings(Common::String &command, Common::StringMap &settings, Commo
 		return true;
 	} else if (command == "help") {
 		printf(HELP_STRING, s_appName);
+		return true;
+	} else if (command == "detect-game") {
+		runDetector(settings["path"].c_str());
 		return true;
 	}
 #ifdef DETECTOR_TESTING_HACK
